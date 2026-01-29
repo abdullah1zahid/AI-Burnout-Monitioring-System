@@ -1,0 +1,530 @@
+{
+  "name": "AI Burnout Monitioring System",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-N8N-DOMAIN.com/webhook/YOUR-WEBHOOK-ID",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Ocp-Apim-Subscription-Key",
+              "value": "YOUR_AZURE_API_KEY_HERE"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"documents\": [\n    {\n      \"id\": \"1\",\n      \"language\": \"en\",\n      \"text\": $json.feedback_text\n    }\n  ]\n}\n}}",
+        "options": {}
+      },
+      "name": "Azure Sentiment AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -832,
+        304
+      ],
+      "id": "6e29187e-973c-4711-aa3f-223b2bcef160",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "oS95NgS9miFwtvPm",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  // Replace 'On form submission' with the ACTUAL name of your first node\n  // Tip: Look at the text above your first node on the canvas\n  const triggerNodeName = 'On form submission'; \n  \n  try {\n    // This grabs the 'Full Name' from your trigger node\n    const employeeName = $(triggerNodeName).first().json[\"Full Name\"];\n    \n    // Access the sentiment data from the Azure node (the node right before this one)\n    const negativeScore = item.json.documents[0].confidenceScores.negative;\n\n    // Set the new values\n    item.json.employee = employeeName;\n    item.json.finalRiskScore = Math.round(negativeScore * 100);\n    item.json.status = item.json.finalRiskScore > 70 ? \"🔴 High Burnout\" : \"🟢 Stable\";\n    \n  } catch (error) {\n    throw new Error(`Could not find data from node \"${triggerNodeName}\". Please check if the name matches exactly.`);\n  }\n}\n\nreturn $input.all();"
+      },
+      "name": "Risk Calculator Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        304
+      ],
+      "id": "f5f9adc5-4e9e-4d08-a1d1-6d2d22750915"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.finalRiskScore }}",
+              "operation": "larger",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "name": "Risk Threshold Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        304
+      ],
+      "id": "aae8cf9d-2638-4fae-9b7e-3b4f0a0ef64e"
+    },
+    {
+      "parameters": {
+        "formTitle": "Employee Wellness Check",
+        "formDescription": "Workload & Wellness Survey",
+        "formFields": {
+          "values": [
+            {
+              "fieldName": "Full Name",
+              "fieldLabel": "Full Name",
+              "requiredField": true
+            },
+            {
+              "fieldName": "feedback_text",
+              "fieldLabel": "How are you feeling about your workload lately?",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.4,
+      "position": [
+        -1104,
+        304
+      ],
+      "id": "372195a6-5f10-4f8f-a253-c3817ae986e8",
+      "name": "On form submission",
+      "webhookId": "51b25b93-cbc3-4b54-8485-791c99e58795"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1d1pryyTt-dvpnTJTzPmlTZhF_j8GcKcenOdM0eC2RBI",
+          "mode": "list",
+          "cachedResultName": "Burnout Monitoring Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1d1pryyTt-dvpnTJTzPmlTZhF_j8GcKcenOdM0eC2RBI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1252104212,
+          "mode": "list",
+          "cachedResultName": "Sheet Banane Aur Export Karne Ka Tareeqa",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1d1pryyTt-dvpnTJTzPmlTZhF_j8GcKcenOdM0eC2RBI/edit#gid=1252104212"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Employee Name": "={{ $node[\"On form submission\"].json[\"Full Name\"] }}",
+            "Burnout Score": "={{ $json.finalRiskScore }}%",
+            "Status": "={{ $json.status }}",
+            "Timestamp (Date & Time)": "={{ $now.setZone('Asia/Karachi').toLocaleString(DateTime.DATETIME_MED) }}",
+            "Action Required": "={{ $json.finalRiskScore > 70 ? \"🔴 Urgent: Schedule 1-on-1 Meeting\" : \"🟢 No Action Needed\" }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp (Date & Time)",
+              "displayName": "Timestamp (Date & Time)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Employee Name",
+              "displayName": "Employee Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Burnout Score",
+              "displayName": "Burnout Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action Required",
+              "displayName": "Action Required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -80,
+        288
+      ],
+      "id": "827a01a4-5af3-4aa1-b406-bd1059d43440",
+      "name": "Burnout Monitoring Log",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "g2VIqSa88pb2GDRq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "shazada.abdullah98@gmail.com",
+        "subject": "⚠️ Urgent Alert: High Burnout Risk Detected",
+        "message": "=<!DOCTYPE html>\n<html>\n<head>\n<style>\n   .email-wrapper { background-color: #f4f7f6; padding: 30px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }\n   .email-container { background-color: #ffffff; max-width: 600px; margin: 0 auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }\n   .header { background-color: #2c3e50; color: #ffffff; padding: 25px; text-align: center; }\n   .header h2 { margin: 0; letter-spacing: 1px; font-size: 22px; text-transform: uppercase; }\n   .body-content { padding: 40px; color: #444444; }\n   .info-table { width: 100%; border-collapse: collapse; margin: 20px 0; background-color: #fcfcfc; border-radius: 8px; overflow: hidden; }\n   .info-table td { padding: 15px; border-bottom: 1px solid #f0f0f0; font-size: 15px; }\n   .label { color: #7f8c8d; font-weight: 600; width: 40%; }\n   .value { color: #2c3e50; font-weight: 700; text-align: right; }\n   .btn-container { text-align: center; margin-top: 35px; }\n   .action-btn { background-color: #34495e; color: #ffffff !important; padding: 15px 35px; text-decoration: none; border-radius: 30px; font-weight: bold; display: inline-block; }\n   .footer { background-color: #fbfbfb; padding: 20px; text-align: center; font-size: 12px; color: #95a5a6; border-top: 1px solid #f0f0f0; }\n</style>\n</head>\n<body>\n   <div class=\"email-wrapper\">\n     <div class=\"email-container\">\n       <div class=\"header\">\n         <h2>Wellness Report</h2>\n       </div>\n       <div class=\"body-content\">\n         <p style=\"text-align: center; font-size: 16px;\">Automated assessment has identified a burnout risk for:</p>\n         \n         <table class=\"info-table\">\n           <tr>\n             <td class=\"label\">Employee Name</td>\n             <td class=\"value\">{{ $json.employee }}</td>\n           </tr>\n           <tr>\n             <td class=\"label\">Burnout Score</td>\n             <td class=\"value\" style=\"color: #e67e22;\">{{ $json.finalRiskScore }}%</td>\n           </tr>\n           <tr>\n             <td class=\"label\">Evaluation</td>\n             <td class=\"value\">{{ $json.status }}</td>\n           </tr>\n           <tr>\n             <td class=\"label\">Report Time</td>\n             <td class=\"value\">{{ $now.setZone('Asia/Karachi').toFormat('dd-MM-yyyy hh:mm a') }}</td>\n           </tr>\n         </table>\n\n         <div class=\"btn-container\">\n           <a href=\"https://calendar.google.com/\" class=\"action-btn\">Open Schedule</a>\n         </div>\n       </div>\n       <div class=\"footer\">\n         Generated by AI Burnout Monitor (AzScience Academy)<br>\n         Verified by: <strong>Abdullah Zahid (BSc Physics)</strong>\n       </div>\n     </div>\n   </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -80,
+        112
+      ],
+      "id": "c0c15289-dc24-44c8-b2b4-1ab8d1893f6f",
+      "name": "Urgent_Risk_Notifier",
+      "webhookId": "19e7f261-0b3f-4aae-8adf-bd0e698d7cfe",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rytmWrlNaI7AqYiA",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1d1pryyTt-dvpnTJTzPmlTZhF_j8GcKcenOdM0eC2RBI",
+          "mode": "list",
+          "cachedResultName": "Burnout Monitoring Log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1d1pryyTt-dvpnTJTzPmlTZhF_j8GcKcenOdM0eC2RBI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1252104212,
+          "mode": "list",
+          "cachedResultName": "Sheet Banane Aur Export Karne Ka Tareeqa",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1d1pryyTt-dvpnTJTzPmlTZhF_j8GcKcenOdM0eC2RBI/edit#gid=1252104212"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Employee Name": "={{ $node[\"On form submission\"].json[\"Full Name\"] }}",
+            "Burnout Score": "={{ $json.finalRiskScore }}%",
+            "Status": "✅ No immediate action needed",
+            "Timestamp (Date & Time)": "={{ $now.setZone('Asia/Karachi').toLocaleString(DateTime.DATETIME_MED) }}",
+            "Action Required": "🟢 Stable"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp (Date & Time)",
+              "displayName": "Timestamp (Date & Time)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Employee Name",
+              "displayName": "Employee Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Burnout Score",
+              "displayName": "Burnout Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action Required",
+              "displayName": "Action Required",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -80,
+        480
+      ],
+      "id": "2da63d8f-291c-4b65-ad8e-9f08b7a66b33",
+      "name": "Baseline_Records",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "g2VIqSa88pb2GDRq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "📥 INPUT SOURCE\n- Receives Feedback Form Data\n- Captures 'Full Name' & 'Message'\n- Initiates Workflow",
+        "height": 336,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1152,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "998624c7-d603-408e-8a44-f00a1a395a42",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "🧠 AI ENGINE (Azure)\n- Analyzes text sentiment\n- Returns Confidence Scores\n- Detects Negative/Neutral patterns",
+        "height": 336,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -896,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "f0b06740-5afe-46f7-9f7e-03dde3a647ce",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "⚙️ CALCULATION LOGIC\n- Converts Decimal to Percentage (%)\n- Assigns Employee Name to Data\n- Sets initial status",
+        "height": 336,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -640,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "5d4e5722-9178-4a14-81ee-716f17dc4b26",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "⚖️ DECISION GATE\n- Threshold: 70% Burnout Risk\n- TRUE: Risk > 70 (Critical)\n- FALSE: Risk ≤ 70 (Stable)",
+        "height": 336
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -384,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "886a981b-cbb7-4a54-a4f3-e0aacc95ce8a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "🚨 URGENT ALERT system\n- Sends HTML Report to Admin\n- Triggered ONLY on High Risk\n- Includes Time & Score",
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        96,
+        96
+      ],
+      "typeVersion": 1,
+      "id": "7cfeafeb-c6bd-4ce5-8c18-55e7857d612a",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "📝 CRITICAL DATABASE\n- Logs High Burnout Cases\n- Action Required: Urgent Meeting\n- Tab: 'Critical_Alerts'",
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        96,
+        272
+      ],
+      "typeVersion": 1,
+      "id": "7aea0b57-e071-48db-a95d-c7c27a052f83",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "✅ BASELINE DATABASE\n- Logs Stable/Normal Cases\n- Action: No Action Needed\n- Tab: 'Baseline_Log'",
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        96,
+        448
+      ],
+      "typeVersion": 1,
+      "id": "7a205b85-268c-4c37-98b2-fbf8a8ad63a7",
+      "name": "Sticky Note6"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Azure Sentiment AI": {
+      "main": [
+        [
+          {
+            "node": "Risk Calculator Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Calculator Engine": {
+      "main": [
+        [
+          {
+            "node": "Risk Threshold Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Threshold Check": {
+      "main": [
+        [
+          {
+            "node": "Burnout Monitoring Log",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Urgent_Risk_Notifier",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Baseline_Records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Azure Sentiment AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Burnout Monitoring Log": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "d4da3dba-a9f1-4296-8602-8b0789c5a536",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bc774d01a36b1358fe79243b064579e1db576ef896fd14a4bb69983aaa2dfc31"
+  },
+  "id": "5asjHmhm8gNi0WMYz6FyI",
+  "tags": [
+    {
+      "updatedAt": "2026-01-25T07:40:44.994Z",
+      "createdAt": "2026-01-25T07:40:44.994Z",
+      "id": "Rof9abg9F4POAgth",
+      "name": "#AI"
+    },
+    {
+      "updatedAt": "2026-01-25T07:41:15.501Z",
+      "createdAt": "2026-01-23T22:23:47.389Z",
+      "id": "Ga4N5lXh0wp38XHI",
+      "name": "#AI-Automation"
+    },
+    {
+      "updatedAt": "2026-01-19T20:30:26.694Z",
+      "createdAt": "2026-01-19T20:30:26.694Z",
+      "id": "t1W8ubeqK0ya22VL",
+      "name": "ai-powered"
+    },
+    {
+      "updatedAt": "2026-01-26T20:34:40.778Z",
+      "createdAt": "2026-01-26T20:34:40.778Z",
+      "id": "Xu7OSz5RnPbrWwvD",
+      "name": "automated"
+    },
+    {
+      "updatedAt": "2026-01-23T22:24:14.328Z",
+      "createdAt": "2026-01-23T22:24:14.328Z",
+      "id": "3EUFISTpOFXNLnzL",
+      "name": "n8n-Expert"
+    },
+    {
+      "updatedAt": "2026-01-19T20:30:39.602Z",
+      "createdAt": "2026-01-19T20:30:39.602Z",
+      "id": "hBDjjUNkERXv7ZZA",
+      "name": "productivity"
+    }
+  ]
+}
